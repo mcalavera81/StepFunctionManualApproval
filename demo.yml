@@ -1,0 +1,67 @@
+functions:
+  hello:
+    handler: handler.hello
+
+stepFunctions:
+  stateMachines:
+    hellostepfunc1:
+      events:
+        - http:
+            path: gofunction
+            method: GET
+        - schedule:
+            rate: rate(10 minutes)
+            enabled: true
+            input:
+              key1: value1
+              key2: value2
+              stageParams:
+                stage: dev
+      name: myStateMachine
+      definition:
+        Comment: "A Hello World example of the Amazon States Language using an AWS Lambda Function"
+        StartAt: HelloWorld1
+        States:
+          HelloWorld1:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [hello, Arn]
+            End: true
+      dependsOn: CustomIamRole
+      tags:
+        Team: Atlantis
+      alarms:
+        topics:
+          ok: arn:aws:sns:us-east-1:1234567890:NotifyMe
+          alarm: arn:aws:sns:us-east-1:1234567890:NotifyMe
+          insufficientData: arn:aws:sns:us-east-1:1234567890:NotifyMe
+        metrics:
+          - executionsTimeOut
+          - executionsFailed
+          - executionsAborted
+          - metric: executionThrottled
+            treatMissingData: breaching # overrides below default
+        treatMissingData: ignore # optional
+    hellostepfunc2:
+      definition:
+        StartAt: HelloWorld2
+        States:
+          HelloWorld2:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [hello, Arn]
+            End: true
+      dependsOn:
+        - DynamoDBTable
+        - KinesisStream
+        - CUstomIamRole
+      tags:
+        Team: Atlantis
+  activities:
+    - myTask
+    - yourTask
+  validate: true # enable pre-deployment definition validation (disabled by default)
+
+plugins:
+  - serverless-step-functions
+  - serverless-pseudo-parameters

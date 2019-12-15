@@ -1,0 +1,141 @@
+service: step-functions-example
+
+plugins:
+  #- serverless-plugin-aws-alerts
+  - serverless-iam-roles-per-function
+  - serverless-dynamodb-local
+  - serverless-step-functions
+  - serverless-pseudo-parameters
+  - serverless-offline-step-functions
+  - serverless-sam
+  - serverless-s3-local
+  - serverless-plugin-existing-s3
+  - serverless-offline
+custom:
+  s3:
+    port: 8000
+    directory: /tmp
+  localstack:
+    stages:
+      - local
+  serverless-offline:  
+    port: 3000
+    lambdaPort: 3002    
+  stage: ${opt:stage, 'dev'}
+  local:
+    GW_URL: http://localhost:3000
+  dev:
+    GW_URL: 
+      Fn::Join:
+        - ""
+        - - "https://"
+          - Ref: ApiGatewayRestApi
+          - ".execute-api.${self:provider.region}.amazonaws.com/${self:custom.stage}"  
+      
+provider:
+  name: aws
+  runtime: nodejs8.10
+  stage: ${self:custom.stage}
+  logs:
+    restApi: true    
+  environment:
+    STATE_MACHINE_ARN: ${self:resources.Outputs.AnotherStateMachine.Value}
+    GW_URL: ${self:custom.${self:custom.stage}.GW_URL}
+# package:
+#   exclude:
+#     - node_modules/aws-sdk/**
+functions:
+  hello:
+    handler: src/index.handler    
+    events:
+      - http:
+          path: hello
+          method: GET
+  activityWorker:
+    handler: src/worker.handler
+    description: My function
+    timeout: 90 
+    environment:
+      activityArn: !Ref MyActivityStepFunctionsActivity   
+    events:
+      - schedule:
+          name: myEvent
+          description: a description of my scheduled event's purpose
+          rate: rate(2 minutes)
+          enabled: true 
+    iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - ses:SendEmail
+      Resource: "*"
+    - Effect: Allow
+      Action:
+        - states:GetActivityTask
+      Resource: "arn:aws:states:#{AWS::Region}:#{AWS::AccountId}:activity:myActivity"
+  manualApproval:
+    handler: src/manualApproval.handler
+    events:
+      - http:
+          path: approval/{outcome}
+          method: get
+          request:
+            parameters:
+              paths:
+                outcome: true
+    iamRoleStatements:            
+     - Effect: Allow
+       Action:
+          - states:SendTaskFailure
+          - states:SendTaskSuccess 
+       Resource: "arn:aws:states:#{AWS::Region}:#{AWS::AccountId}:activity:myActivity"            
+    
+  startStateMachine:
+    handler: handler.startStateMachine
+    events:
+      - http:
+          path: start
+          method: post
+          cors: true
+
+stepFunctions:
+  stateMachines:
+    waitToSendStateMachine:
+      name: anotherStateMachine
+      events:
+        - http:
+            path: cacapedo
+            method: GET
+      definition:
+        StartAt: Demo
+        States:
+          Demo:
+            Type: Pass
+            Next: Activity
+          Activity:
+            Type: Task 
+            Resource: !Ref MyActivityStepFunctionsActivity 
+            End: true  
+
+  activities:
+  - myActivity
+  validate: true                    
+  
+resources:
+  # Resources:
+  #   NewResource:
+  #     Type: AWS::S3::Bucket
+  #     Properties:
+  #       BucketName: mylocal-bucket
+  Outputs:
+    AnotherStateMachine:
+      Description: The ARN of the example state machine
+      Value:
+        Ref: AnotherStateMachine
+    ApiUrl:
+      Description: "The API Gateway URL"
+      Value:
+        Fn::Join:
+          - ""
+          - - "https://"
+            - Ref: ApiGatewayRestApi
+            - ".execute-api.${self:provider.region}.amazonaws.com/${self:custom.stage}"

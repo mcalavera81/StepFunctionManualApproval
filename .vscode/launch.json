@@ -1,0 +1,41 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach to Remote",
+            "address": "localhost",
+            "port": 4567,          
+        },
+        {
+            "type": "node",
+            "name": "run sls offline",
+            "request": "launch",
+            "env": { "SLS_DEBUG":"*"},
+            "address": "localhost",
+            "program": "${workspaceRoot}/node_modules/.bin/sls",
+            "args": [
+                "offline"
+            ]           
+        },
+        {
+            "type": "node",
+            "name": "run manual approval",
+            "request": "launch",
+            "env": { "SLS_DEBUG":"*"},
+            "program": "${workspaceRoot}/node_modules/.bin/sls",
+            "args": [
+                "invoke",
+                "local",
+                "-f",
+                "manualApproval",
+                "--data",
+                "{}"
+            ]           
+        }
+    ]
+}

@@ -1,0 +1,1 @@
+node --inspect-brk --debug-port=4567 $(which sls) offline

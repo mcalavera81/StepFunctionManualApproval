@@ -1,0 +1,229 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'SAM template for Serverless framework service: '
+Resources:
+  StepFunctionsExampleDevHello:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: src/index.handler
+      Runtime: nodejs8.10
+      CodeUri: >-
+        /home/farid/Development/StepFunctionManualApproval/.serverless/step-functions-example.zip
+      MemorySize: 128
+      Timeout: 3
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN:
+            Ref: AnotherStateMachine
+          GW_URL:
+            'Fn::Join':
+              - ''
+              - - 'https://'
+                - Ref: ApiGatewayRestApi
+                - .execute-api.us-east-1.amazonaws.com/dev
+      Events:
+        Event1:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: GET
+            RestApiId:
+              Ref: StepFunctionsExample
+  StepFunctionsExample:
+    Type: 'AWS::Serverless::Api'
+    Properties:
+      StageName: dev
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          title:
+            Ref: 'AWS::StackName'
+        paths:
+          /hello:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri:
+                  'Fn::Sub': >-
+                    arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StepFunctionsExampleDevHello.Arn}/invocations
+              responses: {}
+          '/approval/{outcome}':
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri:
+                  'Fn::Sub': >-
+                    arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StepFunctionsExampleDevManualApproval.Arn}/invocations
+              responses: {}
+          /start:
+            options:
+              x-amazon-apigateway-integration:
+                type: mock
+                requestTemplates:
+                  application/json: '{ "statusCode" : 200 }'
+                responses:
+                  default:
+                    statusCode: 200
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Headers: '''Content-Type,X-Amz-Date,Authorization,X-Api-Key'''
+                      method.response.header.Access-Control-Allow-Methods: '''post'''
+                      method.response.header.Access-Control-Allow-Origin: '''*'''
+                    responseTemplates:
+                      application/json: '{}'
+              responses:
+                '200':
+                  headers:
+                    Access-Control-Allow-Headers:
+                      type: string
+                    Access-Control-Allow-Methods:
+                      type: string
+                    Access-Control-Allow-Origin:
+                      type: string
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri:
+                  'Fn::Sub': >-
+                    arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StepFunctionsExampleDevStartStateMachine.Arn}/invocations
+                responses:
+                  default:
+                    statusCode: 200
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Headers: '''Content-Type,X-Amz-Date,Authorization,X-Api-Key'''
+                      method.response.header.Access-Control-Allow-Methods: '''post'''
+                      method.response.header.Access-Control-Allow-Origin: '''*'''
+                    responseTemplates:
+                      application/json: '{}'
+              responses:
+                '200':
+                  headers:
+                    Access-Control-Allow-Headers:
+                      type: string
+                    Access-Control-Allow-Methods:
+                      type: string
+                    Access-Control-Allow-Origin:
+                      type: string
+  StepFunctionsExampleDevHelloLambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    DependsOn:
+      - StepFunctionsExampleDevHello
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName:
+        Ref: StepFunctionsExampleDevHello
+      Principal: apigateway.amazonaws.com
+  StepFunctionsExampleDevActivityWorker:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: src/worker.handler
+      Runtime: nodejs8.10
+      CodeUri: >-
+        /home/farid/Development/StepFunctionManualApproval/.serverless/step-functions-example.zip
+      Description: My function
+      MemorySize: 128
+      Timeout: 90
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN:
+            Ref: AnotherStateMachine
+          GW_URL:
+            'Fn::Join':
+              - ''
+              - - 'https://'
+                - Ref: ApiGatewayRestApi
+                - .execute-api.us-east-1.amazonaws.com/dev
+          activityArn:
+            Ref: MyActivityStepFunctionsActivity
+      Events:
+        Event1:
+          Type: Schedule
+          Properties:
+            Schedule: rate(2 minutes)
+  StepFunctionsExampleDevManualApproval:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: src/manualApproval.handler
+      Runtime: nodejs8.10
+      CodeUri: >-
+        /home/farid/Development/StepFunctionManualApproval/.serverless/step-functions-example.zip
+      MemorySize: 128
+      Timeout: 3
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN:
+            Ref: AnotherStateMachine
+          GW_URL:
+            'Fn::Join':
+              - ''
+              - - 'https://'
+                - Ref: ApiGatewayRestApi
+                - .execute-api.us-east-1.amazonaws.com/dev
+      Events:
+        Event1:
+          Type: Api
+          Properties:
+            Path: '/approval/{outcome}'
+            Method: get
+            RestApiId:
+              Ref: StepFunctionsExample
+  StepFunctionsExampleDevManualApprovalLambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    DependsOn:
+      - StepFunctionsExampleDevManualApproval
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName:
+        Ref: StepFunctionsExampleDevManualApproval
+      Principal: apigateway.amazonaws.com
+  StepFunctionsExampleDevStartStateMachine:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: handler.startStateMachine
+      Runtime: nodejs8.10
+      CodeUri: >-
+        /home/farid/Development/StepFunctionManualApproval/.serverless/step-functions-example.zip
+      MemorySize: 128
+      Timeout: 3
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN:
+            Ref: AnotherStateMachine
+          GW_URL:
+            'Fn::Join':
+              - ''
+              - - 'https://'
+                - Ref: ApiGatewayRestApi
+                - .execute-api.us-east-1.amazonaws.com/dev
+      Events:
+        Event1:
+          Type: Api
+          Properties:
+            Path: /start
+            Method: post
+            RestApiId:
+              Ref: StepFunctionsExample
+  StepFunctionsExampleDevStartStateMachineLambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    DependsOn:
+      - StepFunctionsExampleDevStartStateMachine
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName:
+        Ref: StepFunctionsExampleDevStartStateMachine
+      Principal: apigateway.amazonaws.com
+Outputs:
+  AnotherStateMachine:
+    Description: The ARN of the example state machine
+    Value:
+      Ref: AnotherStateMachine
+  ApiUrl:
+    Description: The API Gateway URL
+    Value:
+      'Fn::Join':
+        - ''
+        - - 'https://'
+          - Ref: ApiGatewayRestApi
+          - .execute-api.us-east-1.amazonaws.com/dev
