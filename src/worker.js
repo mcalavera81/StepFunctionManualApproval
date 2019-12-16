@@ -18,6 +18,7 @@ module.exports.handler = async(event,context) =>{
 
         let data = await stepfunctions.getActivityTask(taskParams).promise();
 
+        console.log(`Input: ${JSON.stringify(data.input)}`)
         if (!data.input) {
             // No activities scheduled
             console.log('No activities received after 60 seconds.');

@@ -39,11 +39,9 @@ provider:
   logs:
     restApi: true    
   environment:
-    STATE_MACHINE_ARN: ${self:resources.Outputs.AnotherStateMachine.Value}
+    STATE_MACHINE_ARN: !Ref AnotherStateMachine #${self:resources.Outputs.AnotherStateMachine.Value}
     GW_URL: ${self:custom.${self:custom.stage}.GW_URL}
-# package:
-#   exclude:
-#     - node_modules/aws-sdk/**
+
 functions:
   hello:
     handler: src/index.handler    
@@ -90,21 +88,26 @@ functions:
        Resource: "arn:aws:states:#{AWS::Region}:#{AWS::AccountId}:activity:myActivity"            
     
   startStateMachine:
-    handler: handler.startStateMachine
+    handler: src/startStateMachine.handler    
     events:
       - http:
           path: start
           method: post
           cors: true
-
+    iamRoleStatements:            
+     - Effect: Allow
+       Action:
+          - states:StartExecution       
+       Resource: !Ref AnotherStateMachine
+      # arn:aws:states:#{AWS::Region}:#{AWS::AccountId}:stateMachine:anotherStateMachine
 stepFunctions:
   stateMachines:
     waitToSendStateMachine:
       name: anotherStateMachine
       events:
         - http:
-            path: cacapedo
-            method: GET
+            path: myStart
+            method: POST
       definition:
         StartAt: Demo
         States:
