@@ -36,6 +36,7 @@ provider:
   name: aws
   runtime: nodejs8.10
   stage: ${self:custom.stage}
+  profile: Developer
   logs:
     restApi: true    
   environment:
@@ -113,12 +114,31 @@ stepFunctions:
         States:
           Demo:
             Type: Pass
-            Next: Activity
+            Next: Activity        
           Activity:
             Type: Task 
             Resource: !Ref MyActivityStepFunctionsActivity 
-            End: true  
-
+            Next: MyChoice  
+          MyChoice:
+            Type: Choice
+            Choices:
+            - Variable: "$.status"
+              StringEquals: "Success"
+              Next: "ApprovedPassState"
+            - Variable: "$.status"
+              StringEquals: "Failure"
+              Next: RejectedPassState   
+            Default: DefaultState  
+          ApprovedPassState:
+            Type: Pass
+            End: true            
+          RejectedPassState:
+            Type: Pass
+            End: true
+          DefaultState:
+            Type: Fail
+            Cause: "No Matches!"
+          
   activities:
   - myActivity
   validate: true                    

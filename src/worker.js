@@ -1,6 +1,7 @@
 const S3 = require('aws-sdk/clients/s3');
 const AWS = require('aws-sdk'); 
-const {SUCCESS, FAILURE} = require('../shared/constants').approval
+const {SUCCESS, FAILURE} = require('../shared/constants.js').approval
+
 const stepfunctions = new AWS.StepFunctions();
 const ses = new AWS.SES();
 
