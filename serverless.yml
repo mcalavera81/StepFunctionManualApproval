@@ -1,4 +1,4 @@
-service: step-functions-example
+service: demo-day
 
 plugins:
   #- serverless-plugin-aws-alerts
@@ -37,6 +37,7 @@ provider:
   runtime: nodejs8.10
   stage: ${self:custom.stage}
   profile: Developer
+  region: us-east-1
   logs:
     restApi: true    
   environment:
